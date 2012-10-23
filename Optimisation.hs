@@ -45,6 +45,17 @@ branchbound branch bound borne initN opt@(optimum,optval) criteria
           Max -> (>)
         
           
+astar :: (OptNode n) => (n -> [n]) -- Fonction de séparation
+                     -> (n -> n -> Bool) -- Heursitique comparant deux problèmes et renvoyant "Vrai" 
+                                         -- s'il faut choisir la première solution plutot que la seconde
+                     -> n -- Noeud initial
+                     -> (n,Double) -- Couple (Noeud trouvé, valeur obtenue)
+                                
+astar branch heuristique initN 
+ | trivial initN = (initN, solve initN)
+ | otherwise     = let candidats = branch initN
+                       meilleurCandidat = foldl1 (\a e -> if a `heuristique` e then a else e) candidats in           
+                   astar branch heuristique meilleurCandidat
 
 
 
