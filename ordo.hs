@@ -1,15 +1,21 @@
 import Data.List.Zipper
 import Optimisation
+import Data.List
 
 --type Capacite = [Double]
 
 -- Une Tâche est un triplet (durée, besoins,dateDebut)
-data Tache = Tache { duree :: Int,
-					besoins :: [Double],
-					predecesseurs :: [Tache],
-					dateDebut :: Int}
+data Tache = Tache {label :: String,
+                    duree :: Int,
+                    besoins :: [Double],
+                    predecesseurs :: [String],
+                    dateDebut :: Int}
                 deriving Show
-
+                
+instance Eq Tache where
+  t1 == t2 = label t1 == label t2
+  
+  
 -- Un probleme est un triplet (Tâches finies, Tâches en cours, Tâches candidates, Tâches restantes, [ressources restante], temps)
 data Probleme = Probleme { finies :: [(Tache)],
 							cours :: [(Tache)],
@@ -42,23 +48,37 @@ instance OptNode Probleme where
 			recalculer taches candidates
 -}
 
+pBranch p = let candidatsSortants = [(t,dateDebut t + duree t) | t <- cours p]
+                rea = [c | c <- candidates p, and $ zipWith (<) (besoins c) (ressources p)]
+                meilleursCandidatsSortants = foldl (\(a,d) (t,dFin) -> if null a then ([t],dFin)
+																					 else if d == dFin then (t:a,d)
+																					 else if dFin < d then ([t],dFin)
+																					 else (a,d)) ([],0) candidatsSortants
+                probleme1 = p{cours = cours p \\ fst meilleursCandidatsSortants,
+								temps = snd meilleursCandidatsSortants,
+								restantes =  map (\t -> t{predecesseurs = predecesseurs t \\ map label (fst meilleursCandidatsSortants) }) (restantes p),
+								finies = finies p ++ fst meilleursCandidatsSortants,
+								ressources = foldl (zipWith (+)) (ressources p) (map besoins (fst meilleursCandidatsSortants)) }
+                nouveauxCandidats = [c | c <- restantes probleme1, null (predecesseurs c)]                                
+		    in if null rea
+		       then [probleme1{restantes = restantes probleme1 \\ nouveauxCandidats,
+                        candidates = candidates probleme1 ++ nouveauxCandidats}]
+			   else p{temps = temps p + 1}:map f rea
+         where f tache = p{cours = tache: cours p,
+                           candidates = tail $ dropWhile (/= tache) (candidates p),
+                           ressources = zipWith (-) (ressources p) (besoins tache)
+                           }
+		        
 
-test  p@(Probleme finies cours candidates restantes ressource temps) = 
-	let rea = [c |c <- candidates, and (zipWith < (ressources c) (ressource))]
-	in rea
+ 
+-- date de fin
+pert t l = case pred of
+    [] -> duree t
+    otherwise -> duree t + maximum [pert ti l + duree ti | ti <- pred]
+ where pred = [t' | t' <- l, label t' `elem` predecesseurs t]
+ 
+
+heuristique p1 p2 = calc p1 <= calc p2
+		where calc p = (temps p + sum (map duree (restantes p ++ candidates p)))
 
 
---pBranch  p@(Probleme finies cours candidates restantes ressources temps) = 
-	--	let f x = let rea = [c |c <- candidates, fold f c ]
-
-		 
-{-
-pBranch  p@(Probleme finies cours candidates restantes ressources temps) = fst $ until (endp.snd) genererPb ([],z)
-    where z = fromList l2
-          genererPb (liste,zipper) = let current = cursor zipper
-                                         pb = case conf of
-                                                   N -> Probleme (current:l1) (toList $ zipper) (cmax - snd current) 
-                                                   Boolean -> Probleme (current:l1) (toList $ delete zipper) (cmax - snd current) in
-                                     if (snd current <= cmax) then (pb:liste,right zipper)
-                                                              else (liste, right zipper)
--}
