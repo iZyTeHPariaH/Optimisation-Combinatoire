@@ -16,6 +16,10 @@ instance Eq Tache where
   t1 == t2 = label t1 == label t2
   
   
+showList' l = if null l then "[]"
+						else "["++ foldl1 (\a e -> a  ++ "\n" ++ e) (map show l) ++"]"
+  
+  
 -- Un probleme est un triplet (Tâches finies, Tâches en cours, Tâches candidates, Tâches restantes, [ressources restante], temps)
 data Probleme = Probleme { finies :: [(Tache)],
 							cours :: [(Tache)],
@@ -23,7 +27,14 @@ data Probleme = Probleme { finies :: [(Tache)],
 							restantes :: [Tache],
 							ressources :: [Double],
 							temps :: Int}
-                deriving Show
+							
+instance Show Probleme where
+ show p = "\n\nTaches Finies :\n" ++ showList' (finies p) ++"\n" ++ 
+			"Taches en cours :\n" ++ showList' (cours p) ++"\n" ++ 
+			"Taches candidates :\n" ++showList' (candidates p) ++"\n" ++ 
+			"Taches Taches restantes :\n" ++ showList' (restantes p) ++ "\n" ++ 
+			"Ressources :\n" ++ show (ressources p) ++ "\n"++
+			"Temps :" ++show (temps p)
 
 
 -- Définition de notre problème d'optimisation
@@ -64,7 +75,7 @@ pBranch p = let candidatsSortants = [(t,dateDebut t + duree t) | t <- cours p]
 		       then [probleme1{restantes = restantes probleme1 \\ nouveauxCandidats,
                         candidates = candidates probleme1 ++ nouveauxCandidats}]
 			   else p{temps = temps p + 1}:map f rea
-         where f tache = p{cours = tache: cours p,
+         where f tache = p{cours = tache{dateDebut=temps p}: cours p,
                            candidates = tail $ dropWhile (/= tache) (candidates p),
                            ressources = zipWith (-) (ressources p) (besoins tache)
                            }
@@ -73,12 +84,52 @@ pBranch p = let candidatsSortants = [(t,dateDebut t + duree t) | t <- cours p]
  
 -- date de fin
 pert t l = case pred of
-    [] -> duree t
-    otherwise -> duree t + maximum [pert ti l + duree ti | ti <- pred]
+    [] -> 0
+    otherwise -> maximum [pert ti l + duree ti | ti <- pred]
  where pred = [t' | t' <- l, label t' `elem` predecesseurs t]
  
 
 heuristique p1 p2 = calc p1 <= calc p2
 		where calc p = (temps p + sum (map duree (restantes p ++ candidates p)))
+
+
+tachesAFaire2 = [Tache "A0" 0 [0,0] [],
+				Tache "A1" 6  [2,1] ["A0"],
+				Tache "A2" 1 [1,0] ["A0"],
+				Tache "A3" 1 [3,1] ["A0"],
+				Tache "A4" 2 [2,0] ["A0"],
+				Tache "A5" 3 [1,1] ["A2"],
+				Tache "A6" 5 [2,1] ["A2"],
+				Tache "A7" 6 [3,0] ["A3"],
+				Tache "A8" 3 [1,2] ["A4"],
+				Tache "A9" 2 [1,2] ["A5"],
+				Tache "A10" 4 [1,1] ["A1","A6","A9"],
+				Tache "A11" 0 [0,0] ["A0","A10","A8","A9","A7"]]
+		
+		
+		
+		
+tachesAFaire = [Tache  "debut"  0 [0,0] [] ,
+                Tache  "A" 10  [3,0] ["debut"] ,                           
+                Tache  "B_prec"  2 [0,0] ["debut"],
+                Tache  "B"   4 [3,0] ["B_prec"] ,
+                Tache  "C"  2  [1,0] ["debut"] ,
+                Tache "D" 8 [1,1] ["A","B"],
+                Tache "E" 6 [1,1] ["B"],
+                Tache "F" 5 [2,1] ["C"],                           
+                Tache  "G"  9 [3,0] ["D","E"],
+                Tache  "H"  2 [2,1] ["E","F"],
+                Tache  "I"  7 [1,0] ["G","H"],
+                Tache  "J"  4 [2,0] ["F"],
+                Tache  "Fin"  0 [0,0] ["I","J"]]
+
+				
+taches = map ($(-1)) tachesAFaire
+
+p = Probleme [] [] [head taches] (tail taches) [5,1] 0
+
+
+taches2 = map ($(-1)) tachesAFaire2
+p2 = Probleme [] [] [head taches2] (tail taches2) [5,1] 0
 
 
