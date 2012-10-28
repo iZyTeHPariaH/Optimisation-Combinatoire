@@ -49,7 +49,7 @@ instance Show Probleme where
 
 -- Définition de notre problème d'optimisation
 instance OptNode Probleme where
-  {- Le cas trivial se présente quand il n'y a plus de tâches à restantes à placer -}
+  {- Le cas trivial se présente quand il n'y a plus de tâches en candidates ni restantes à placer -}
   trivial (Probleme _ _ c r _ _)
     | (null r) && (null c) = True
     | otherwise = False
@@ -99,7 +99,7 @@ pBranch p = let candidatsSortants = [(t,dateDebut t + duree t) | t <- cours p]
  
 -- date de fin
 pert t l = case pred of
-    [] -> 0
+    [] -> if dateDebut t < 0 then duree t else 0 --si elles n'ont pas de predecesseurs et ont un temps négatif, elles sont candidates, les autres sont en cours
     otherwise -> maximum [pert ti l + duree ti | ti <- pred]
  where pred = [t' | t' <- l, label t' `elem` predecesseurs t]
 
