@@ -102,6 +102,7 @@ pert t l = case pred of
     [] -> 0
     otherwise -> maximum [pert ti l + duree ti | ti <- pred]
  where pred = [t' | t' <- l, label t' `elem` predecesseurs t]
+
  
 
 {- Heuristique servant à trier les neuds lors de l'utilisation de A* 
@@ -117,7 +118,7 @@ pEval p = snd $ astar pBranch heuristique p
 
 {- La borne optimale non réalisable est la solution du problème relaxé. 
 		On abandonne les contraintes de ressources -}
-pBorne p = fromInteger((temps p) + pert (last reste) reste ) where reste = concat [cours p , candidates p , restantes p]
+pBorne p = fromInteger((temps p) + pert (last reste) reste ) where reste = concat [candidates p , restantes p]
 		
 		
 		
@@ -170,9 +171,11 @@ choixCandidat p = foldl1 (\a e -> if a `heuristique` e then a else e) (pBranch p
 startBranchBound p = runCont (branchbound pBranch pBorne pEval p (p, pEval p) Min) print
 
 
+file = "D:\\My Documents\\Cours\\Git\\Optimisation-Combinatoire\\Log.txt"
 
 
-
+main = do
+        writeFile file (runCont (branchbound pBranch pBorne pEval p (p, pEval p) Min) show)
 
 
 
