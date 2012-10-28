@@ -1,52 +1,68 @@
 import Data.List.Zipper
 import Optimisation
 import Data.List
+import Control.Monad.Cont
 
---type Capacite = [Double]
 
 -- Une Tâche est un triplet (durée, besoins,dateDebut)
 data Tache = Tache {label :: String,
-                    duree :: Int,
+                    duree :: Integer,
                     besoins :: [Double],
                     predecesseurs :: [String],
-                    dateDebut :: Int}
+                    dateDebut :: Integer}
                 deriving Show
-                
+-- Les tâches sont identifiées par leur label
+-- elles sont donc égales lorsque leurs label sont égaux                
 instance Eq Tache where
   t1 == t2 = label t1 == label t2
   
   
+  
+  
+-- toString pour des liste d'objets, on affiche chaque attribut entre corchet sur une ligne 
 showList' l = if null l then "[]"
 						else "["++ foldl1 (\a e -> a  ++ "\n" ++ e) (map show l) ++"]"
   
   
--- Un probleme est un triplet (Tâches finies, Tâches en cours, Tâches candidates, Tâches restantes, [ressources restante], temps)
+  
+  
+-- Un probleme est un objet : 
+--   (Tâches finies, Tâches en cours, Tâches candidates, Tâches restantes, [ressources restante], temps)
 data Probleme = Probleme { finies :: [(Tache)],
 							cours :: [(Tache)],
 							candidates :: [(Tache)],
 							restantes :: [Tache],
 							ressources :: [Double],
-							temps :: Int}
+							temps :: Integer}
 							
 instance Show Probleme where
  show p = "\n\nTaches Finies :\n" ++ showList' (finies p) ++"\n" ++ 
 			"Taches en cours :\n" ++ showList' (cours p) ++"\n" ++ 
 			"Taches candidates :\n" ++showList' (candidates p) ++"\n" ++ 
-			"Taches Taches restantes :\n" ++ showList' (restantes p) ++ "\n" ++ 
+			"Taches restantes :\n" ++ showList' (restantes p) ++ "\n" ++ 
 			"Ressources :\n" ++ show (ressources p) ++ "\n"++
 			"Temps :" ++show (temps p)
 
 
+			
+			
+
 -- Définition de notre problème d'optimisation
 instance OptNode Probleme where
   {- Le cas trivial se présente quand il n'y a plus de tâches à restantes à placer -}
-  trivial (Probleme _ _ _ r _ _)
-    | null r = True
+  trivial (Probleme _ _ c r _ _)
+    | (null r) && (null c) = True
     | otherwise = False
   
   {- Résoudre le problème consiste à retourner le temps total de l'ordonancement
 		i.e. le maximum des (dates débuts + durées) des tâches en cours-}
   solve (Probleme _ cours _ _ _ _) = fromIntegral $ maximum [dateDebut c + duree c |c <- cours]
+  
+  
+  
+  
+  
+  
   
   
   {- La séparation consiste à :
@@ -58,13 +74,12 @@ instance OptNode Probleme where
 			liberer les ressources
 			recalculer taches candidates
 -}
-
 pBranch p = let candidatsSortants = [(t,dateDebut t + duree t) | t <- cours p]
-                rea = [c | c <- candidates p, and $ zipWith (<) (besoins c) (ressources p)]
+                rea = [c | c <- candidates p, and $ zipWith (<=) (besoins c) (ressources p)]
                 meilleursCandidatsSortants = foldl (\(a,d) (t,dFin) -> if null a then ([t],dFin)
 																					 else if d == dFin then (t:a,d)
 																					 else if dFin < d then ([t],dFin)
-																					 else (a,d)) ([],0) candidatsSortants
+																					 else (a,d)) ([],temps p) candidatsSortants
                 probleme1 = p{cours = cours p \\ fst meilleursCandidatsSortants,
 								temps = snd meilleursCandidatsSortants,
 								restantes =  map (\t -> t{predecesseurs = predecesseurs t \\ map label (fst meilleursCandidatsSortants) }) (restantes p),
@@ -76,7 +91,7 @@ pBranch p = let candidatsSortants = [(t,dateDebut t + duree t) | t <- cours p]
                         candidates = candidates probleme1 ++ nouveauxCandidats}]
 			   else p{temps = temps p + 1}:map f rea
          where f tache = p{cours = tache{dateDebut=temps p}: cours p,
-                           candidates = tail $ dropWhile (/= tache) (candidates p),
+                           candidates = (candidates p) \\ [tache],--tail $ dropWhile (/= tache) (candidates p),
                            ressources = zipWith (-) (ressources p) (besoins tache)
                            }
 		        
@@ -89,10 +104,24 @@ pert t l = case pred of
  where pred = [t' | t' <- l, label t' `elem` predecesseurs t]
  
 
+{- Heuristique servant à trier les neuds lors de l'utilisation de A* 
+	dans le calcul de l'évaluation -}
 heuristique p1 p2 = calc p1 <= calc p2
 		where calc p = (temps p + sum (map duree (restantes p ++ candidates p)))
 
+		
+{- La borne non optimale réalisable consiste à appliquer A*
+	c'est a dire prendre le meilleur noeud parmis les fils, suivant une heuristique -}
+pEval p = snd $ astar pBranch heuristique p
 
+
+{- La borne optimale non réalisable est la solution du problème relaxé. 
+		On abandonne les contraintes de ressources -}
+pBorne p = fromInteger((temps p) + pert (last reste) reste ) where reste = concat [cours p , candidates p , restantes p]
+		
+		
+		
+		
 tachesAFaire2 = [Tache "A0" 0 [0,0] [],
 				Tache "A1" 6  [2,1] ["A0"],
 				Tache "A2" 1 [1,0] ["A0"],
@@ -125,11 +154,58 @@ tachesAFaire = [Tache  "debut"  0 [0,0] [] ,
 
 				
 taches = map ($(-1)) tachesAFaire
-
 p = Probleme [] [] [head taches] (tail taches) [5,1] 0
 
 
 taches2 = map ($(-1)) tachesAFaire2
-p2 = Probleme [] [] [head taches2] (tail taches2) [5,1] 0
+p2 = Probleme [] [] [head taches2] (tail taches2) [7,4] 0
+
+f1 #. 1 = f1
+f1 #. n = f1.(f1 #. (n-1))
+
+choixCandidat p = foldl1 (\a e -> if a `heuristique` e then a else e) (pBranch p)
+
+
+
+startBranchBound p = runCont (branchbound pBranch pBorne pEval p (p, pEval p) Min) print
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
