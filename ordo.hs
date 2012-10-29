@@ -43,7 +43,7 @@ instance Show Probleme where
 			"Ressources :\n" ++ show (ressources p) ++ "\n"++
 			"Temps :" ++show (temps p)
 
-
+--instance Ord Probleme where compare = heuristiqueBB
 			
 			
 
@@ -119,10 +119,17 @@ pEval p = snd $ astar pBranch heuristique p
 
 {- La borne optimale non réalisable est la solution du problème relaxé. 
 		On abandonne les contraintes de ressources -}
-pBorne p = fromInteger((minimum [dateDebut t' + duree t' | t' <- cours p]) + pert (last reste) reste ) where reste = concat [candidates p , restantes p]
+		
+pBorne p = fromInteger (minTachesEnCours + pert (last reste) reste)
+						where reste = concat [candidates p, restantes p]
+								minTachesEnCours = case cours p of
+									[] -> temps p
+									otherwise -> minimum [dateDebut t' + duree t' | t' <-cours p]
+
 		
 		
 		
+heuristiqueBB p1 p2 = GT
 		
 tachesAFaire2 = [Tache "A0" 0 [0,0] [],
 				Tache "A1" 6  [2,1] ["A0"],
@@ -168,17 +175,17 @@ f1 #. n = f1.(f1 #. (n-1))
 choixCandidat p = foldl1 (\a e -> if a `heuristique` e then a else e) (pBranch p)
 
 
-{-
-startBranchBound p = runCont (branchbound pBranch pBorne pEval p (p, pEval p) Min) print
+
+startBranchBound p = runCont (branchbound pBranch pBorne pEval p (p, pEval p) Min heuristiqueBB) print
 
 
 file = "D:\\My Documents\\Cours\\Git\\Optimisation-Combinatoire\\Log.txt"
 
-
+{-
 main = do
         writeFile file (runCont (branchbound pBranch pBorne pEval p (p, pEval p) Min) show)
-
 -}
+
 
 
 

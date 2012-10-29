@@ -9,8 +9,7 @@ class OptNode n where
   trivial :: n -> Bool     -- Prédicat vérifiant si on est sur une feuille.
   solve ::  n -> Double  -- Fonction résolvant un problème (une feuille).
   
-branchbound :: (Show n, OptNode n,
-                Ord n) =>  (n -> [n]) -- Séparation du noeud
+branchbound :: (Show n, OptNode n) =>  (n -> [n]) -- Séparation du noeud
                            -> (n -> Double)   -- Approximation du noeud (borne optimale non realisable)
                            -> (n -> Double)   -- Approximation du noeud (borne non optimale realisable)
                            -> n          -- Noeud initial
