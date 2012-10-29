@@ -20,8 +20,8 @@ instance Eq Tache where
   
   
 -- toString pour des liste d'objets, on affiche chaque attribut entre corchet sur une ligne 
-showList' l = if null l then "[]"
-						else "["++ foldl1 (\a e -> a  ++ "\n" ++ e) (map show l) ++"]"
+showList' l = if null l then "[]"						
+              else "["++ foldl1 (\a e -> a  ++ "\n" ++ e) (map show l) ++"]"
   
   
   
@@ -29,19 +29,19 @@ showList' l = if null l then "[]"
 -- Un probleme est un objet : 
 --   (Tâches finies, Tâches en cours, Tâches candidates, Tâches restantes, [ressources restante], temps)
 data Probleme = Probleme { finies :: [(Tache)],
-							cours :: [(Tache)],
-							candidates :: [(Tache)],
-							restantes :: [Tache],
-							ressources :: [Double],
-							temps :: Integer}
+                           cours :: [(Tache)],
+                           candidates :: [(Tache)],
+                           restantes :: [Tache],
+                           ressources :: [Double],
+                           temps :: Integer}
 							
 instance Show Probleme where
  show p = "\n\nTaches Finies :\n" ++ showList' (finies p) ++"\n" ++ 
-			"Taches en cours :\n" ++ showList' (cours p) ++"\n" ++ 
-			"Taches candidates :\n" ++showList' (candidates p) ++"\n" ++ 
-			"Taches restantes :\n" ++ showList' (restantes p) ++ "\n" ++ 
-			"Ressources :\n" ++ show (ressources p) ++ "\n"++
-			"Temps :" ++show (temps p)
+          "Taches en cours :\n" ++ showList' (cours p) ++"\n" ++ 
+          "Taches candidates :\n" ++showList' (candidates p) ++"\n" ++ 
+          "Taches restantes :\n" ++ showList' (restantes p) ++ "\n" ++ 
+          "Ressources :\n" ++ show (ressources p) ++ "\n"++
+          "Temps :" ++show (temps p)
 
 --instance Ord Probleme where compare = heuristiqueBB
 			
@@ -82,19 +82,18 @@ pBranch p = let candidatsSortants = [(t,dateDebut t + duree t) | t <- cours p]
                                                                        else if dFin < d then ([t],dFin)
                                                                        else (a,d)) ([fst premierCandidatSortant],snd premierCandidatSortant) candidatsSortants
                 probleme1 = p{cours = cours p \\ fst meilleursCandidatsSortants,
-								temps = snd meilleursCandidatsSortants,
-								restantes =  map (\t -> t{predecesseurs = predecesseurs t \\ map label (fst meilleursCandidatsSortants) }) (restantes p),
-								finies = finies p ++ fst meilleursCandidatsSortants,
-								ressources = foldl (zipWith (+)) (ressources p) (map besoins (fst meilleursCandidatsSortants)) }
+                              temps = snd meilleursCandidatsSortants,
+                              restantes =  map (\t -> t{predecesseurs = predecesseurs t \\ map label (fst meilleursCandidatsSortants) }) (restantes p),
+                              finies = finies p ++ fst meilleursCandidatsSortants,
+                              ressources = foldl (zipWith (+)) (ressources p) (map besoins (fst meilleursCandidatsSortants)) }
                 nouveauxCandidats = [c | c <- restantes probleme1, null (predecesseurs c)]                                
 		    in if null rea
 		       then [probleme1{restantes = restantes probleme1 \\ nouveauxCandidats,
-                        candidates = candidates probleme1 ++ nouveauxCandidats}]
-			   else p{temps = temps p + 1}:map f rea
+                                       candidates = candidates probleme1 ++ nouveauxCandidats}]
+                       else p{temps = temps p + 1}:map f rea
          where f tache = p{cours = tache{dateDebut=temps p}: cours p,
                            candidates = (candidates p) \\ [tache],--tail $ dropWhile (/= tache) (candidates p),
-                           ressources = zipWith (-) (ressources p) (besoins tache)
-                           }
+                           ressources = zipWith (-) (ressources p) (besoins tache)}
 		        
 
  
@@ -121,10 +120,10 @@ pEval p = snd $ astar pBranch heuristique p
 		On abandonne les contraintes de ressources -}
 		
 pBorne p = fromInteger (minTachesEnCours + pert (last reste) reste)
-						where reste = concat [candidates p, restantes p]
-								minTachesEnCours = case cours p of
-									[] -> temps p
-									otherwise -> minimum [dateDebut t' + duree t' | t' <-cours p]
+  where reste = concat [candidates p, restantes p]
+        minTachesEnCours = case cours p of
+          [] -> temps p                
+          otherwise -> minimum [dateDebut t' + duree t' | t' <-cours p]
 
 		
 		
