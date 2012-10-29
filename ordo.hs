@@ -4,11 +4,12 @@ import Data.List
 import Control.Monad.Cont
 
 
--- Une Tâche est un triplet (durée, besoins,dateDebut)
+-- Une Tâche est un objet (label, durée, besoins, predecesseurs, degre, dateDebut)
 data Tache = Tache {label :: String,
                     duree :: Integer,
                     besoins :: [Double],
                     predecesseurs :: [String],
+					degre :: Integer,
                     dateDebut :: Integer}
                 deriving Show
 -- Les tâches sont identifiées par leur label
@@ -75,31 +76,39 @@ instance OptNode Probleme where
 			recalculer taches candidates
 -}
 pBranch p = let candidatsSortants = [(t,dateDebut t + duree t) | t <- cours p]
+--				Tache en tete de la liste candidats Sortants
                 premierCandidatSortant = head $ candidatsSortants
+--				Taches realisables : candidates et suffisement de ressources sont dispo
                 rea = [c | c <- candidates p, and $ zipWith (<=) (besoins c) (ressources p)]
+--				Liste des prochaines taches à finir
                 meilleursCandidatsSortants = foldl (\(a,d) (t,dFin) -> if null a then ([t],dFin)
                                                                        else if d == dFin then (t:a,d)
                                                                        else if dFin < d then ([t],dFin)
-                                                                       else (a,d)) ([fst premierCandidatSortant],snd premierCandidatSortant) candidatsSortants
+                                                                       else (a,d)) ([],temps p) candidatsSortants
+--																	   
                 probleme1 = p{cours = cours p \\ fst meilleursCandidatsSortants,
                               temps = snd meilleursCandidatsSortants,
+							  --On supprime les predecesseurs de restantes parmis celle qu'on vient de sortir 
                               restantes =  map (\t -> t{predecesseurs = predecesseurs t \\ map label (fst meilleursCandidatsSortants) }) (restantes p),
+							  --On ajoute aux taches finies celles qui sortent
                               finies = finies p ++ fst meilleursCandidatsSortants,
                               ressources = foldl (zipWith (+)) (ressources p) (map besoins (fst meilleursCandidatsSortants)) }
+--				Taches n'ayant plus de successeurs			  
                 nouveauxCandidats = [c | c <- restantes probleme1, null (predecesseurs c)]                                
-		    in if null rea
+--		   S'il n'y a pas de taches realisables
+		   in if null rea
 		       then [probleme1{restantes = restantes probleme1 \\ nouveauxCandidats,
                                        candidates = candidates probleme1 ++ nouveauxCandidats}]
                        else p{temps = temps p + 1}:map f rea
          where f tache = p{cours = tache{dateDebut=temps p}: cours p,
-                           candidates = (candidates p) \\ [tache],--tail $ dropWhile (/= tache) (candidates p),
+                           candidates = (candidates p) \\ [tache], --tail $ dropWhile (/= tache) (candidates p),
                            ressources = zipWith (-) (ressources p) (besoins tache)}
 		        
 
  
 -- date de fin
 pert t l = case pred of
-    [] -> if dateDebut t < 0 then duree t else 0 --si elles n'ont pas de predecesseurs et ont un temps négatif, elles sont candidates, les autres sont en cours
+    [] -> if dateDebut t < 0 then 0 else duree t --si elles n'ont pas de predecesseurs et ont un temps négatif, elles sont candidates, les autres sont en cours
     otherwise -> maximum [pert ti l + duree ti | ti <- pred]
  where pred = [t' | t' <- l, label t' `elem` predecesseurs t]
 
@@ -129,7 +138,8 @@ pBorne p = fromInteger (minTachesEnCours + pert (last reste) reste)
 		
 		
 heuristiqueBB p1 p2 = GT
-		
+
+
 tachesAFaire2 = [Tache "A0" 0 [0,0] [],
 				Tache "A1" 6  [2,1] ["A0"],
 				Tache "A2" 1 [1,0] ["A0"],
@@ -161,11 +171,10 @@ tachesAFaire = [Tache  "debut"  0 [0,0] [] ,
                 Tache  "Fin"  0 [0,0] ["I","J"]]
 
 				
-taches = map ($(-1)) tachesAFaire
+taches = [t{degre = fromIntegral $ length $ predecesseurs t} | tgen <- tachesAFaire, let t = tgen 0 (-1) ]
 p = Probleme [] [] [head taches] (tail taches) [5,1] 0
 
-
-taches2 = map ($(-1)) tachesAFaire2
+taches2 = [t{degre = fromIntegral $ length $ predecesseurs t} | tgen <- tachesAFaire2, let t = tgen 0 (-1) ]
 p2 = Probleme [] [] [head taches2] (tail taches2) [7,4] 0
 
 f1 #. 1 = f1
