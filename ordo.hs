@@ -75,11 +75,12 @@ instance OptNode Probleme where
 			recalculer taches candidates
 -}
 pBranch p = let candidatsSortants = [(t,dateDebut t + duree t) | t <- cours p]
+                premierCandidatSortant = head $ candidatsSortants
                 rea = [c | c <- candidates p, and $ zipWith (<=) (besoins c) (ressources p)]
                 meilleursCandidatsSortants = foldl (\(a,d) (t,dFin) -> if null a then ([t],dFin)
-																					 else if d == dFin then (t:a,d)
-																					 else if dFin < d then ([t],dFin)
-																					 else (a,d)) ([],temps p) candidatsSortants
+                                                                       else if d == dFin then (t:a,d)
+                                                                       else if dFin < d then ([t],dFin)
+                                                                       else (a,d)) ([fst premierCandidatSortant],snd premierCandidatSortant) candidatsSortants
                 probleme1 = p{cours = cours p \\ fst meilleursCandidatsSortants,
 								temps = snd meilleursCandidatsSortants,
 								restantes =  map (\t -> t{predecesseurs = predecesseurs t \\ map label (fst meilleursCandidatsSortants) }) (restantes p),
@@ -167,7 +168,7 @@ f1 #. n = f1.(f1 #. (n-1))
 choixCandidat p = foldl1 (\a e -> if a `heuristique` e then a else e) (pBranch p)
 
 
-
+{-
 startBranchBound p = runCont (branchbound pBranch pBorne pEval p (p, pEval p) Min) print
 
 
@@ -177,7 +178,7 @@ file = "D:\\My Documents\\Cours\\Git\\Optimisation-Combinatoire\\Log.txt"
 main = do
         writeFile file (runCont (branchbound pBranch pBorne pEval p (p, pEval p) Min) show)
 
-
+-}
 
 
 
