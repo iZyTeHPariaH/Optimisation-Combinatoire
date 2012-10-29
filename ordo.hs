@@ -119,7 +119,7 @@ pEval p = snd $ astar pBranch heuristique p
 
 {- La borne optimale non réalisable est la solution du problème relaxé. 
 		On abandonne les contraintes de ressources -}
-pBorne p = fromInteger((temps p) + pert (last reste) reste ) where reste = concat [candidates p , restantes p]
+pBorne p = fromInteger((minimum [dateDebut t' + duree t' | t' <- cours p]) + pert (last reste) reste ) where reste = concat [candidates p , restantes p]
 		
 		
 		
