@@ -105,23 +105,22 @@ pBranch p = let candidatsSortants = [(t,dateDebut t + duree t) | t <- cours p]
 		   in if null rea
 		      then [probleme1{restantes = restantes probleme1 \\ nouveauxCandidats,
                                candidates = candidates probleme1 ++ nouveauxCandidats}]
-              else p{temps = temps p + 1,
+              else (map f' rea) ++ [p{temps = temps p + 1,
                      cours = cours p \\ candidatsSortantsBis,
                      restantes = map f $ map (g (map label candidatsSortantsBis)) (restantes p),
-                     ressources = foldl (zipWith (+)) (ressources p) (map besoins candidatsSortantsBis) }:map f' rea
+                     ressources = foldl (zipWith (+)) (ressources p) (map besoins candidatsSortantsBis) }]
               where f' tache = p{cours = tache{dateDebut=temps p}: cours p,
                                  candidates = (candidates p) \\ [tache], --tail $ dropWhile (/= tache) (candidates p),
                                  ressources = zipWith (-) (ressources p) (besoins tache)}
-                    candidatsSortantsBis = [t | t <- cours p, dateDebut t + duree t < (temps p) + 1]--faut il mettre le +1 ? cf ligne else...
+                    candidatsSortantsBis = [t | t <- cours p, dateDebut t + duree t <= (temps p) + 1]--faut il mettre le +1 ? cf ligne else...
 
  
 -- date de fin
-pert t l = case pred of
-    [] -> if dateDebut t < 0 then 0 else dateDebut t
-    otherwise -> if (dateDebut t) >= 0 then dateDebut t  --si elles n'ont pas de predecesseurs et ont un temps négatif, elles sont candidates, les autres sont en cours
-                 else maximum [pert ti l  + duree ti | ti <- pred]
- where pred = [t' | t' <- l, label t' `elem` predecesseurs t]
-
+pert t l instant 
+	| dateDebut t >= 0 = dateDebut t
+	| dateDebut t < 0 && degre t == 0 = instant
+	| otherwise = maximum [pert ti l instant + duree ti | ti <- pred]
+                  where pred = [t' | t' <- l, label t' `elem` predecesseurs t]
  
 
 {- Heuristique servant à trier les neuds lors de l'utilisation de A* 
@@ -138,13 +137,23 @@ pEval p = snd $ astar pBranch heuristique p
 {- La borne optimale non réalisable est la solution du problème relaxé. 
 		On abandonne les contraintes de ressources -}
 		
-pBorne p = fromInteger (minTachesEnCours + pert (last reste) reste)
-  where reste = concat [candidates p, restantes p]
+pBorne1 p = fromInteger (pert (last reste) reste (temps p))
+  where reste = concat [finies p, cours p, candidates p, restantes p]
         minTachesEnCours = case cours p of
           [] -> temps p                
           otherwise -> minimum [dateDebut t' + duree t' | t' <-cours p]
 
-		
+		  
+		  
+pBorne2 p = let f t = map (* fromIntegral (duree t)) (besoins t)  --Energie pour les taches non commencé
+                f' t = map (* fromIntegral ((duree t)+(dateDebut t)-(temps p))) (besoins t) --Energie pour les taches en cours
+                g l = foldl (zipWith (+)) [0 | t <- energieDispo] l -- Sommer une liste de listes d'energies 
+                energie = zipWith (+) (g $ map f ((restantes p)++(candidates p))) (g $ map f' (cours p)) --Energie totale necessaire
+                ressourcesDispo = foldl (zipWith (+)) (ressources p) (map besoins (cours p))
+                ratio = zipWith (/) energie ressourcesDispo
+			 in (maximum ratio) + fromIntegral (temps p)
+			 
+pBorne p = max (pBorne1 p) (pBorne2 p)		
 		
 		
 heuristiqueBB p1 p2 = GT
