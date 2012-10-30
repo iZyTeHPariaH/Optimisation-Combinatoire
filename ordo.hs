@@ -92,34 +92,34 @@ pBranch p = let candidatsSortants = [(t,dateDebut t + duree t) | t <- cours p]
 --																	   
                 probleme1 = p{cours = cours p \\ fst meilleursCandidatsSortants,
                               temps = snd meilleursCandidatsSortants,
-							  --On supprime les predecesseurs de restantes parmis celle qu'on vient de sortir 
+                              --On supprime les predecesseurs de restantes parmis celle qu'on vient de sortir 
                               --restantes =  map (\t -> t{predecesseurs = predecesseurs t \\ map label (fst meilleursCandidatsSortants) }) (restantes p),
-							  restantes = map f $ map (g (map label (fst meilleursCandidatsSortants))) (restantes p),
-							  --On ajoute aux taches finies celles qui sortent
+                              restantes = map f $ map (g (map label (fst meilleursCandidatsSortants))) (restantes p),
+                              --On ajoute aux taches finies celles qui sortent
                               finies = finies p ++ fst meilleursCandidatsSortants,
---							  --On libere les ressources des taches sortantes
+                              --On libere les ressources des taches sortantes
                               ressources = foldl (zipWith (+)) (ressources p) (map besoins (fst meilleursCandidatsSortants)) }
---				Taches n'ayant plus de successeurs			  
+                            --Taches n'ayant plus de successeurs			  
                 nouveauxCandidats = [c | c <- restantes probleme1, (degre c)==0]                                
 --		   S'il n'y a pas de taches realisables
 		   in if null rea
 		      then [probleme1{restantes = restantes probleme1 \\ nouveauxCandidats,
                                candidates = candidates probleme1 ++ nouveauxCandidats}]
               else p{temps = temps p + 1,
-					  cours = cours p \\ candidatsSortantsBis,
-					  restantes = map f $ map (g (map label candidatsSortantsBis)) (restantes p),
-					  ressources = foldl (zipWith (+)) (ressources p) (map besoins candidatsSortantsBis) }:map f' rea
+                     cours = cours p \\ candidatsSortantsBis,
+                     restantes = map f $ map (g (map label candidatsSortantsBis)) (restantes p),
+                     ressources = foldl (zipWith (+)) (ressources p) (map besoins candidatsSortantsBis) }:map f' rea
               where f' tache = p{cours = tache{dateDebut=temps p}: cours p,
-						           candidates = (candidates p) \\ [tache], --tail $ dropWhile (/= tache) (candidates p),
-                                   ressources = zipWith (-) (ressources p) (besoins tache)}
+                                 candidates = (candidates p) \\ [tache], --tail $ dropWhile (/= tache) (candidates p),
+                                 ressources = zipWith (-) (ressources p) (besoins tache)}
                     candidatsSortantsBis = [t | t <- cours p, dateDebut t + duree t < (temps p) + 1]--faut il mettre le +1 ? cf ligne else...
 
  
 -- date de fin
-pert t l time = case pred of
+pert t l = case pred of
     [] -> if dateDebut t < 0 then 0 else dateDebut t
-    otherwise -> if (dateDebut t) > 0 then time  --si elles n'ont pas de predecesseurs et ont un temps négatif, elles sont candidates, les autres sont en cours
-									  else maximum [pert ti l time + duree ti | ti <- pred]
+    otherwise -> if (dateDebut t) >= 0 then dateDebut t  --si elles n'ont pas de predecesseurs et ont un temps négatif, elles sont candidates, les autres sont en cours
+                 else maximum [pert ti l  + duree ti | ti <- pred]
  where pred = [t' | t' <- l, label t' `elem` predecesseurs t]
 
  
@@ -138,7 +138,7 @@ pEval p = snd $ astar pBranch heuristique p
 {- La borne optimale non réalisable est la solution du problème relaxé. 
 		On abandonne les contraintes de ressources -}
 		
-pBorne p = fromInteger (minTachesEnCours + pert (last reste) reste (temps p))
+pBorne p = fromInteger (minTachesEnCours + pert (last reste) reste)
   where reste = concat [candidates p, restantes p]
         minTachesEnCours = case cours p of
           [] -> temps p                
