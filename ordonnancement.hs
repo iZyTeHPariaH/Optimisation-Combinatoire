@@ -1,28 +1,44 @@
 import Optimisation
-
+import Data.List
+import Control.Monad.State
 type Instant = Double
-data Tache = Tache  {duree :: Double,
-                     dependances :: [Tache]} deriving Show
-type TacheAffectee = (Tache, Instant, Machine)            
-             
-data Machine = Machine {efficacite :: Double,
-                        coutMachine :: Double} deriving Show
-                                                        
-data Probleme = Probleme {instantActuel :: Instant,
-                          tachesAffectees :: [TacheAffectee],
+data Tache = Tache {tLabel :: String,
+                    dateDebut :: Instant,
+                    dureeBase :: Double,
+                    predecesseurs :: [Tache],
+                    degres :: Integer}
+instance Eq Tache where             
+  t1 == t2 = (tLabel t1) == (tLabel t2)
+  
+data Machine = Machine {mLabel :: String,
+                        efficacite :: Double}
+instance Eq Machine where
+  m1 == m2 = mLabel m1 == mLabel m2
+
+type TacheOrdonnancee = (Tache, Machine, Instant)
+
+data Probleme = Probleme {instant :: Instant,
+                          tachesFinies :: [TacheOrdonnancee],
+                          tachesEnCours :: [TacheOrdonnancee],
                           tachesRestantes :: [Tache],
-                          machinesAffectees :: [Machine],
                           machinesDisponibles :: [Machine]}
                 
-instance OptNode Probleme where                
-  trivial = null . tachesRestantes
-  solve = sum . (map (\(t,_,_) -> duree t)) . tachesAffectees
+type ProblemeS = State Probleme
 
-        
--- Affecte une tâche à une machine dans un problème
--- NB que la machine et respectivement la tâche sont supposés ne plus appartenir aux listes
--- de machines disponibles et respectivement de taches restantes et n'y sont donc pas
--- supprimées.
-
-affecterTache :: Tache -> Machine -> Probleme -> Probleme
-affecterTache t m p = p {tachesAffectees = (t,instantActuel p,m): tachesAffectees p}
+libererRessources t@(tache,machine,debut) = do
+  p <- get
+  put $ p{tachesFinies = t:tachesFinies p,
+          tachesEnCours = tachesEnCours p \\ [t],
+          machinesDisponibles = machine:machinesDisponibles p }
+  
+                 
+pBranch' :: ProblemeS [ProblemeS]
+pBranch' = do 
+  p <- get
+  let t = instant p
+      -- On considère l'ensemble des tâches se terminant à l'instant actuel
+      -- Il faudra remplacer dureeBase par un calcul prenant en compte
+      -- l'efficacité de la machine
+      taches = [tache | (tache,machine,debut) <- tachesEnCours p,
+                        debut + dureeBase tache <= t]
+   foldl (\m a -> )    
