@@ -106,6 +106,7 @@ pBranch p = let candidatsSortants = [(t,dateDebut t + duree t) | t <- cours p]
 		      then [probleme1{restantes = restantes probleme1 \\ nouveauxCandidats,
                                candidates = candidates probleme1 ++ nouveauxCandidats}]
               else (map f' rea) ++ [p{temps = temps p + 1,
+					 finies = finies p ++ candidatsSortantsBis,
                      cours = cours p \\ candidatsSortantsBis,
                      restantes = map f $ map (g (map label candidatsSortantsBis)) (restantes p),
                      ressources = foldl (zipWith (+)) (ressources p) (map besoins candidatsSortantsBis) }]
@@ -147,7 +148,7 @@ pBorne1 p = fromInteger (pert (last reste) reste (temps p))
 		  
 pBorne2 p = let f t = map (* fromIntegral (duree t)) (besoins t)  --Energie pour les taches non commencé
                 f' t = map (* fromIntegral ((duree t)+(dateDebut t)-(temps p))) (besoins t) --Energie pour les taches en cours
-                g l = foldl (zipWith (+)) [0 | t <- energieDispo] l -- Sommer une liste de listes d'energies 
+                g l = foldl (zipWith (+)) [0 | t <- ressourcesDispo] l -- Sommer une liste de listes d'energies 
                 energie = zipWith (+) (g $ map f ((restantes p)++(candidates p))) (g $ map f' (cours p)) --Energie totale necessaire
                 ressourcesDispo = foldl (zipWith (+)) (ressources p) (map besoins (cours p))
                 ratio = zipWith (/) energie ressourcesDispo
