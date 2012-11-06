@@ -15,7 +15,7 @@ branchbound :: (Show n, OptNode n) =>  (n -> [n]) -- Séparation du noeud
                            -> n          -- Noeud initial
                            -> (n,Double)      -- Couple (Noeud optimal, valeur optimale) trouvé
                            -> OptCriteria -- Critère d'optimisation
-                           -> (n -> n -> Ordering) -- Heuristique (qui renvoie GT si le premier élément est meilleur)
+                           -> (n -> n -> Ordering) -- Heuristique (qui renvoie LT si le premier élément est meilleur)
                            -> Cont r (n,Double) -- Couple (Noeud optimal, valeur optimale) trouvé dans l'arbre
                                   
 branchbound branch borne eval initN opt@(optimum,optval) criteria heuristique
@@ -30,7 +30,7 @@ branchbound branch borne eval initN opt@(optimum,optval) criteria heuristique
                              
      -- Si on se trouve dans un noeud, et qu'on peut esperer trouver mieux, on le développe
      -- et on poursuit l'exploration dans ses fils
-     | maxval `better` minval = -- trace ("[*] " ++ "[NR= " ++ show maxval ++ ",R= "++ show minval ++ ",trouve=" ++ show optval ++ "] - Branching on " ++ show initN)
+     | maxval `better` minval =  trace ("[*] " ++ "[NR= " ++ show maxval ++ ",R= "++ show minval ++ ",trouve=" ++ show optval ++ "] - Branching on " ++ show initN)
                                       (foldM (\a e -> branchbound branch borne eval e a criteria heuristique) opt (sortBy heuristique (branch initN)))
                           
      -- Sinon, si on est sur que le noeud contient une solution optimale, on ne l'explore pas et on
