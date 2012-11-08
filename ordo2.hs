@@ -30,8 +30,8 @@ instance Show Probleme where
                      ++ show (tachesRestantes p) ++ "\n ressources = "
                      ++ show (ressources p)
 instance OptNode Probleme where                
-  trivial p = null (tachesEnCours p) && null (tachesRestantes p)
-  solve p =  instant p
+  trivial p = null (tachesRestantes p)
+  solve p = if null (tachesEnCours p) then instant p else maximum [dateDebut + duree t | (indice,dateDebut) <- tachesEnCours p, let t = taches p ! indice]
                 
 type ProblemeS = State Probleme
 
@@ -95,8 +95,7 @@ pBranch :: Probleme -> [Probleme]
 pBranch p = if null tachesC
             then [snd $ runState attendreFin p]
             else p'{instant = instant p + 1}:map (\t -> snd $ runState (demarerTache t) p') tachesC
-    where p' = snd $ runState terminerTaches p
-          (tachesC,_) = runState tachesCandidates p'
+    where (tachesC,p') = runState (terminerTaches >> tachesCandidates) p
 
 
 pert p t tableau = if dateDebut t >= 0
