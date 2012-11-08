@@ -35,6 +35,23 @@ instance OptNode Probleme where
                 
 type ProblemeS = State Probleme
 
+
+
+calcSucc  :: Tache -> ProblemeS ()
+calcSucc t = do 
+    p <- get
+    let indicesPred = predecesseurs t 
+        pred = map (taches p !) indicesPred
+        ajoutSucc tache = tache{successeurs = indice t : successeurs tache}
+    put p{taches = taches p // zip indicesPred (map ajoutSucc pred)}
+
+majSuccesseurs :: ProblemeS ()
+majSuccesseurs=do
+    tachesT <- gets taches
+    foldM (\ _ t -> calcSucc t) () (elems tachesT)
+
+
+
 recupererTache :: Integer -> ProblemeS Tache
 recupererTache i = do
   t <- gets taches
@@ -120,26 +137,54 @@ choixCandidat p = (if length nxt > 1 then head $ tail nxt
                                     else head $ nxt)
     where nxt = pBranch p
             
-            
-pBorne p = pert p (last $ elems $ taches p) (taches p)
+
+
+pBorne p = max (pBorne1 p) (pBorne2 p)
 pEval p = solve $ until trivial choixCandidat p
-            
-tachesAFaire' = [Tache  "debut" 0 0 [0,0] [] [1,2,4],
-                Tache  "A" 1 10  [3,0] [0] [5],                           
-                Tache  "B_prec" 2 2 [0,0] [0] [3],
-                Tache  "B" 3  4 [3,0] [2] [5,6],
-                Tache  "C" 4 2  [1,0] [0] [7] ,
-                Tache "D" 5 8 [1,1] [1,3] [8],
-                Tache "E" 6 6 [1,1] [3] [8,9],
-                Tache "F" 7 5 [2,1] [4] [9,11],                           
-                Tache  "G" 8  9 [3,0] [5,6] [10],
-                Tache  "H" 9 2 [2,1] [6,7] [10,11],
-                Tache  "I" 10 7 [1,0] [8,9] [12],
-                Tache  "J" 11 4 [2,0] [7] [12],
+
+
+pBorne1 p = pert p (last $ elems $ taches p) (taches p)
+
+pBorne2 :: Probleme -> Double
+pBorne2 p = let tachesC = map ((taches p !).fst) (tachesEnCours p)
+                tachesR = map (taches p !) (tachesRestantes p)
+                energieTacheRestante t = map (* duree t) (cout t) --Energie pour les taches non commencées
+                energieTacheCours t = map (* ((duree t) + (dateDebut t) - (instant p))) (cout t) --Energie pour les taches en cours
+                addEnergie l = foldl (zipWith (+)) (repeat 0) l -- Sommer une liste de listes d'energies 
+                energie = zipWith (+) (addEnergie $ map energieTacheRestante tachesR) (addEnergie $ map energieTacheCours tachesC) --Energie totale necessaire
+                ressourcesDispo = foldl (zipWith (+)) (ressources p) (map cout tachesC)
+                ratio = zipWith (/) energie ressourcesDispo
+            in (maximum ratio) + (instant p)
+ 
+
+
+
+
+	   
+tachesAFaire' = [Tache  "debut" 0 0 [0,0] [] [],
+                Tache  "A" 1 10  [3,0] [0] [],                           
+                Tache  "B_prec" 2 2 [0,0] [0] [],
+                Tache  "B" 3  4 [3,0] [2] [],
+                Tache  "C" 4 2  [1,0] [0] [] ,
+                Tache "D" 5 8 [1,1] [1,3] [],
+                Tache "E" 6 6 [1,1] [3] [],
+                Tache "F" 7 5 [2,1] [4] [],                           
+                Tache  "G" 8  9 [3,0] [5,6] [],
+                Tache  "H" 9 2 [2,1] [6,7] [],
+                Tache  "I" 10 7 [1,0] [8,9] [],
+                Tache  "J" 11 4 [2,0] [7] [],
                 Tache  "Fin" 12 0 [0,0] [10,11] []]
 tachesAFaire = [t {degre = fromIntegral $ length $ predecesseurs t} | t <- map (\f -> f 0 (-1)) tachesAFaire']
 p1 = Probleme (array (0,12) (map (\t -> (indice t, t) )tachesAFaire)) 0 [] [] [0..12] [5,1]
 
 startbb p = runCont (branchbound pBranch pBorne pEval p1 (p1, pEval p1) Min (\_ _ -> GT)) print
 
+p2 = Probleme {taches = listArray (0,12) tachesAFaire,
+                        instant = 21,
+                        tachesFinies = [(7,13.0),(3,10.0),(1,0.0),(4,0.0),(2,0.0),(0,0.0)],
+                        tachesEnCours = [(11,21.0),(5,19.0)],
+                        tachesRestantes =  [6,8,9,10,12],
+                        ressources =  [2.0,0.0]}
+						
+						
 main = startbb p1
