@@ -40,12 +40,14 @@ recupererTache i = do
   t <- gets taches
   return $ t ! i
   
+recupererSuccesseurs :: Tache -> ProblemeS [Tache]
 recupererSuccesseurs t = do
   p <- get
   return $ map (taches p !) (successeurs t)
   
 
 -- Termine la tâche ordonnancée spécifiée (libère les ressources et réduit le degrès des suivants)
+terminerTache :: TacheOrdonnancee -> ProblemeS ()
 terminerTache e@(indice,temps)= do
   p <- get
   tache <- recupererTache indice
@@ -56,6 +58,7 @@ terminerTache e@(indice,temps)= do
           taches = taches p // zip (successeurs tache) (map (\t -> t{degre = degre t - 1}) suivants),
           ressources = zipWith (+) (ressources p) (cout tache)}
 
+terminerTaches :: ProblemeS ()
 terminerTaches = do
   p <- get
   foldM (\_ e -> terminerTache e) () [(i,debut) | (i,debut) <- tachesEnCours p, 
@@ -89,11 +92,11 @@ attendreFin = do
   p <- get
   put $ p{instant = minimum [debut + duree t | (i,debut) <- tachesEnCours p,
                                                let t = taches p ! i]}
-  terminerTaches
+  
   
 pBranch :: Probleme -> [Probleme]
 pBranch p = if null tachesC
-            then [snd $ runState attendreFin p]
+            then [snd $ runState attendreFin p']
             else p'{instant = instant p + 1}:map (\t -> snd $ runState (demarerTache t) p') tachesC
     where (tachesC,p') = runState (terminerTaches >> tachesCandidates) p
 
